@@ -1,0 +1,7 @@
+numpy==1.24.3
+torch==2.0.1
+torchvision==0.15.2
+scikit-image==0.22.0
+cvxpy==1.4.2
+tqdm==4.66.2
+gdown==5.1.0
