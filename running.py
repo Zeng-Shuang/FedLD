@@ -1,4 +1,3 @@
-import tools
 from svd_tools import get_grads_, set_grads_,pcgrad_svd
 import numpy as np
 import copy
@@ -86,8 +85,6 @@ def train_round_fedld(args, global_model, local_clients, rnd, grad_history, **kw
     local_weights_new = []
     for idx in idx_users:
         local_clients_grads.append(get_grads_(local_clients[idx].local_model, global_model))
-    print('shape of local_clients_grads in running.py',len(local_clients_grads),' ',local_clients_grads[0].shape)
-    #grad_new, grad_history = pcgrad_hierarchy(num_users, local_clients_grads, grad_history)
     grad_new, grad_history = pcgrad_svd(num_users, local_clients_grads, grad_history)
     for idx in idx_users:
         local_clients[idx].local_model = set_grads_(local_clients[idx].local_model, global_model, grad_new)
