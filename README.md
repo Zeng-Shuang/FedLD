@@ -11,11 +11,11 @@ pip install -r requirements.txt
 ```
 cd ./data
 ```
-Download the prepared Retina dataset
+Download the prepared Retina dataset.
 ```
 gdown https://drive.google.com/uc?id=1bW--_qRZnWbkb0XXvGBCSferdqXZ6pe7
 ```
-Download the prepared COVID-FL dataset
+Download the prepared COVID-FL dataset.
 ```
 gdown https://drive.google.com/uc?id=1cuvoYvt-EVs5qtA5Xgos0yUJmfPhRbwg
 ```
