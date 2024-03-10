@@ -8,7 +8,9 @@ conda activate fedld
 pip install -r requirements.txt
 ```
 ### Data Preparation
+```
 cd ./data
+```
 Download the prepared Retina dataset
 ```
 gdown https://drive.google.com/uc?id=1bW--_qRZnWbkb0XXvGBCSferdqXZ6pe7
