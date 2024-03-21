@@ -78,13 +78,18 @@ if __name__ == '__main__':
             local_accs1.append(local_acc1)
             local_accs2.append(local_acc2)
 
-    else:
+
+    elif args.train_rule == 'FedAvg':
         for round in range(args.epochs):
-            loss1, loss2, local_acc1, local_acc2= train_round_parallel(args, global_model, local_clients, round)
+            loss1, loss2, local_acc1, local_acc2, supervised_loss, dist_shift_loss, aggregation_loss= train_round_parallel(args, global_model, local_clients, round, train_loader)
             train_loss.append(loss1)
             print("Train Loss: {}, {}".format(loss1, loss2))
             print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
+            print("Local Loss: {}, Distribution Shift Loss: {}, Aggregation Loss: {}".format(supervised_loss, dist_shift_loss, aggregation_loss))
             local_accs1.append(local_acc1)
             local_accs2.append(local_acc2)
+
+    else:
+        print('please define other FL algorithms.')
 
 

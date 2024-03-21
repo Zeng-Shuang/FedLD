@@ -65,7 +65,7 @@ def train_round_fedld(args, global_model, local_clients, rnd, grad_history, **kw
         if rnd <= 2:
             args.lr = 0.0001
         else:
-            args.r = 0.01
+            args.r = 0.0001
 
     for idx in tqdm(idx_users):
         local_client = local_clients[idx]
@@ -101,7 +101,8 @@ def train_round_fedld(args, global_model, local_clients, rnd, grad_history, **kw
 
     return loss_avg1, loss_avg2, acc_avg1, acc_avg2
 
-# FedAvg
+# FedAvg and decomposed loss term computation
+
 def train_round_fedavg(args, global_model, local_clients, rnd, train_loader, **kwargs):
     print(f'\n---- Global Communication Round : {rnd+1} ----')
     num_users = args.num_users
@@ -133,7 +134,7 @@ def train_round_fedavg(args, global_model, local_clients, rnd, train_loader, **k
         local_client.update_local_model(global_weight=global_weight)
         w, loss1, loss2, acc1, acc2 = local_client.local_training(local_epoch=local_epoch, round=rnd)
         print('idx: {}, loss1: {}, loss2: {}, acc1: {}, acc2: {}'.format(idx, loss1, loss2, acc1, acc2))
-        # supervised loss for client idx
+        # local loss for client idx
         supervised_loss_idx = local_client.local_test(test_loader = train_loader[idx])[0]
         supervised_loss_list.append(supervised_loss_idx)
         # distribution shift loss for client idx
