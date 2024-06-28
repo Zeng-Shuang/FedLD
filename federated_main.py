@@ -14,6 +14,13 @@ torch.set_num_threads(4)
 
 if __name__ == '__main__':
     args = args_parser()
+    print(f'Algorithm: {args.train_rule}')
+    print(f'Dataset: {args.dataset}')
+    print(f'Split: {args.retina_split}')
+    print(f'lr: {args.lr}')
+    print(f'local epoch: {args.local_epoch}')
+    print(f'marg_control_loss: {args.marg_control_loss}')
+    print(f'margin_loss_penalty: {args.margin_loss_penalty}')
     device = args.device
     print(device)
     # load dataset and user groups
@@ -72,20 +79,61 @@ if __name__ == '__main__':
 
         for round in range(args.epochs):
             loss1, loss2, local_acc1, local_acc2 = train_round_parallel(args, global_model, local_clients, round,grad_history)
+            print("Train Loss: {}, {}".format(loss1, loss2))
+            print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
+
+
+    elif args.train_rule == 'FedAvg':
+        for round in range(args.epochs):
+            loss1, loss2, local_acc1, local_acc2 = train_round_parallel(args, global_model, local_clients, round, train_loader)
             train_loss.append(loss1)
             print("Train Loss: {}, {}".format(loss1, loss2))
             print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
             local_accs1.append(local_acc1)
             local_accs2.append(local_acc2)
 
-
-    elif args.train_rule == 'FedAvg':
+    elif args.train_rule == 'FedProx':
         for round in range(args.epochs):
             loss1, loss2, local_acc1, local_acc2, supervised_loss, dist_shift_loss, aggregation_loss= train_round_parallel(args, global_model, local_clients, round, train_loader)
             train_loss.append(loss1)
             print("Train Loss: {}, {}".format(loss1, loss2))
             print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
-            print("Local Loss: {}, Distribution Shift Loss: {}, Aggregation Loss: {}".format(supervised_loss, dist_shift_loss, aggregation_loss))
+            print("Supervised Loss: {}, Distribution Shift Loss: {}, Aggregation Loss: {}".format(supervised_loss, dist_shift_loss, aggregation_loss))
+            local_accs1.append(local_acc1)
+            local_accs2.append(local_acc2)
+
+    elif args.train_rule == 'FedBN':
+        for round in range(args.epochs):
+            global_model, local_clients, loss1, loss2, local_acc1, local_acc2 = train_round_parallel(args, global_model, local_clients, round)
+            train_loss.append(loss1)
+            print("Train Loss: {}, {}".format(loss1, loss2))
+            print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
+            local_accs1.append(local_acc1)
+            local_accs2.append(local_acc2)
+
+    elif args.train_rule == 'FedPAC':
+        for round in range(args.epochs):
+            loss1, loss2, local_acc1, local_acc2= train_round_parallel(args, global_model, local_clients, round)
+            train_loss.append(loss1)
+            print("Train Loss: {}, {}".format(loss1, loss2))
+            print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
+            local_accs1.append(local_acc1)
+            local_accs2.append(local_acc2)
+
+    elif args.train_rule == 'FedGH':
+        # initialize grad_history and grad_len
+        grad_history = {}
+        for k in global_model.state_dict().keys():
+            grad_history[k] = None
+        grad_len = initialize_grad_len(global_model, grad_history)
+
+        grad_history['grad_len'] = grad_len
+
+        for round in range(args.epochs):
+            loss1, loss2, local_acc1, local_acc2 = train_round_parallel(args, global_model, local_clients, round,grad_history)
+            train_loss.append(loss1)
+            print("Train Loss: {}, {}".format(loss1, loss2))
+            print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
             local_accs1.append(local_acc1)
             local_accs2.append(local_acc2)
 

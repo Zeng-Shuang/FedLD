@@ -1,31 +1,45 @@
-import torch
-from torch.optim.lr_scheduler import LambdaLR
+# coding: utf-8
+
+import tools
+import math
 import copy
+import torch
 from torch import nn
+import time
 from tqdm import tqdm
-#import tools
 
-class MarginalLogLoss(nn.Module):
-    def __init__(self, lambda_value):
-        super(MarginalLogLoss, self).__init__()
-        self.lambda_value = lambda_value
+#class MarginalLogLoss(nn.Module):
+#    def __init__(self, lambda_value):
+#        super(MarginalLogLoss, self).__init__()
+#        self.lambda_value = lambda_value
 
-    def forward(self, output, target):
-        log_loss = nn.CrossEntropyLoss()(output, target)
-        softmax_output = torch.softmax(output, dim=1)
-        magnitude = torch.norm(softmax_output, p=2)
-        marginal_log_loss = log_loss + self.lambda_value * torch.log(1 + magnitude ** 2)
-        return marginal_log_loss
+#    def forward(self, output, target):
+#        log_loss = nn.CrossEntropyLoss()(output, target)
+        # soft_max_output = torch.softmax(output, dim=1)
+        # magnitude = abs(torch.log(soft_max_output.max(dim=1, keepdim=True)[0])).mean()
+#        softmax_output = torch.softmax(output, dim=1)
+#        magnitude = torch.norm(softmax_output, p=2)
+        #print('magnitude')
+        #print(magnitude)
+#        marginal_log_loss = log_loss + self.lambda_value * torch.log(1 + magnitude ** 2)
+#        return marginal_log_loss
     # ---------------------------------------------------------------------------- #
 
-class LocalUpdate_FedLD(object):
+class LocalUpdate_FedGH(object):
     def __init__(self, idx, args, train_set, test_set, model):
         self.idx = idx
         self.args = args
         self.train_data = train_set
         self.test_data = test_set
         self.device = args.device
-        self.criterion = MarginalLogLoss(args.margin_loss_penalty)
+        #if args.marg_control_loss:
+        #    print('use margin control loss')
+        #    self.criterion = MarginalLogLoss(args.margin_loss_penalty) #nn.CrossEntropyLoss()
+        #else:
+        #    self.criterion = nn.CrossEntropyLoss()
+        #    print('use cross entropy loss')
+        #self.criterion = MarginalLogLoss(args.margin_loss_penalty)
+        self.criterion = nn.CrossEntropyLoss()
         self.local_model = model
         self.local_model_finetune = copy.deepcopy(model)
         #self.w_local_keys = self.local_model.classifier_weight_keys
@@ -46,6 +60,7 @@ class LocalUpdate_FedLD(object):
             for inputs, labels in test_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
                 _, outputs = model(inputs)
+                #outputs = model(inputs)
                 _, predicted = torch.max(outputs.data, 1)
                 correct += (predicted == labels).sum().item()
         acc = 100.0 * correct / total
@@ -57,25 +72,22 @@ class LocalUpdate_FedLD(object):
     def local_training(self, local_epoch, round=0):
         model = self.local_model
         model.train()
+        round_loss = 0
         iter_loss = []
         model.zero_grad()
+        grad_accum = []
 
+        w0 = tools.get_parameter_values(model)
 
         acc1 = self.local_test(self.test_data)
 
         # Set optimizer for the local updates, default sgd
         optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr,
-                                    momentum=0.5, weight_decay=0.0005)
-        # warmup_epochs = 30
-        warmup_epochs = 5
-        scheduler = LambdaLR(optimizer, lr_lambda=lambda ep: (local_epoch * round + ep) / warmup_epochs if (local_epoch * round + ep) < warmup_epochs else 1)
-
+                                        momentum=0.5, weight_decay=0.0005)
         # multiple local epochs
-        if local_epoch > 0:
-            for ep in range(local_epoch):
-                # print(f'epoch {ep}')
-                #print('checkpoint')
-                #print(model.state_dict())
+        if local_epoch>0:
+            print('multiple local epochs')
+            for ep in tqdm(range(local_epoch)):
                 data_loader = iter(self.train_data)
                 iter_num = len(data_loader)
                 for it in range(iter_num):
@@ -83,24 +95,14 @@ class LocalUpdate_FedLD(object):
                     images, labels = images.to(self.device), labels.to(self.device)
                     model.zero_grad()
                     _, output = model(images)
+                    #output = model(images)
                     loss = self.criterion(output, labels)
-                    #loss = self.criterion(output, labels)
-                    # print(f'loss before loss backward: {loss}')
-                    # print('checkpoint before loss backward')
-                    # print(model.state_dict()['conv1.weight'][0][0])
                     loss.backward()
-                    #print('checkpoint after loss backward-1')
-                    #print(model.state_dict())
                     optimizer.step()
-                    #if args.lr_warm_up:
-                    # scheduler.step()  # warm up
-                    # print(f'loss after loss backward: {loss}')
-                    # print('checkpoint after loss backward')
-                    # print(model.state_dict()['conv1.weight'][0][0])
                     iter_loss.append(loss.item())
-                    torch.cuda.empty_cache()
         # multiple local iterations, but less than 1 epoch
         else:
+            print('multiple local iterations, but less than 1 epoch')
             data_loader = iter(self.train_data)
             iter_num = self.args.local_iter
             for it in range(iter_num):
@@ -108,6 +110,7 @@ class LocalUpdate_FedLD(object):
                 images, labels = images.to(self.device), labels.to(self.device)
                 model.zero_grad()
                 _, output = model(images)
+                #output = model(images)
                 loss = self.criterion(output, labels)
                 loss.backward()
                 optimizer.step()
@@ -116,14 +119,16 @@ class LocalUpdate_FedLD(object):
         round_loss1 = iter_loss[0]
         round_loss2 = iter_loss[-1]
         acc2 = self.local_test(self.test_data)
-
+        
         return model.state_dict(), round_loss1, round_loss2, acc1, acc2
 
     def local_fine_tuning(self, local_epoch, round=0):
         model = self.local_model
         model.train()
+        round_loss = 0
         iter_loss = []
         model.zero_grad()
+        grad_accum = []
 
         acc1 = self.local_test(self.test_data)
 
