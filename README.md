@@ -22,5 +22,5 @@ gdown https://drive.google.com/uc?id=1cuvoYvt-EVs5qtA5Xgos0yUJmfPhRbwg
 ## Train and Test
 ```
 cd ./FedLD
-python federated_main.py --train_rule FedLD --dataset retina --retina_split 1 --num_users 5 --local_bs 50 --lr 0.01 --marg_control_loss True --margin_loss_penalty 0.03 --k_proportion 0.8
+python federated_main.py --train_rule FedLD --dataset retina --retina_split 1 --num_users 5 --local_bs 50 --lr 0.01 --epochs 200 --local_epoch 1 --marg_control_loss True --margin_loss_penalty 0.1 --svd True --k_proportion 0.8 --device cuda:0
 ```
