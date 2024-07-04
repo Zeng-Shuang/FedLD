@@ -10,6 +10,7 @@ import math
 import torch
 from torch import nn
 import time
+from torch.optim.lr_scheduler import LambdaLR
 # ---------------------------------------------------------------------------- #
 
 class LocalUpdate_FedPAC(object):
@@ -23,7 +24,6 @@ class LocalUpdate_FedPAC(object):
         self.criterion = nn.CrossEntropyLoss()
         self.local_model = model
         self.last_model = deepcopy(model)
-        #self.w_local_keys = self.local_model.classifier_weight_keys
         self.w_local_keys = ['fc.weight', 'fc.bias']
         self.local_ep_rep = 1
         self.probs_label = self.prior_label(self.train_data).to(self.device)
@@ -113,7 +113,7 @@ class LocalUpdate_FedPAC(object):
         from tqdm import tqdm
         model = self.local_model
         local_protos_list = {}
-        for inputs, labels in tqdm(self.train_data):
+        for inputs, labels in self.train_data:
             inputs, labels = inputs.to(self.device), labels.to(self.device)
             features, outputs = model(inputs)
             protos = features.clone().detach()
@@ -202,6 +202,10 @@ class LocalUpdate_FedPAC(object):
             lr_g = 0.1
             optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=lr_g,
                                                    momentum=0.5, weight_decay=0.0005)
+            warmup_epochs = 5
+            scheduler = LambdaLR(optimizer, lr_lambda=lambda ep: (local_epoch * round + ep) / warmup_epochs
+            if (local_epoch * round + ep) < warmup_epochs else 1)
+
             for ep in range(epoch_classifier):
                 # local training for 1 epoch
                 data_loader = iter(self.train_data)
@@ -214,6 +218,7 @@ class LocalUpdate_FedPAC(object):
                     loss = self.criterion(output, labels)
                     loss.backward()
                     optimizer.step()
+                    scheduler.step()
                     iter_loss.append(loss.item())
                 round_loss.append(sum(iter_loss)/len(iter_loss))
                 iter_loss = []

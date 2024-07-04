@@ -3,7 +3,8 @@ from torch.optim.lr_scheduler import LambdaLR
 import copy
 from torch import nn
 from tqdm import tqdm
-#import tools
+from options import args_parser
+args = args_parser()
 
 class MarginalLogLoss(nn.Module):
     def __init__(self, lambda_value):
@@ -66,16 +67,12 @@ class LocalUpdate_FedLD(object):
         # Set optimizer for the local updates, default sgd
         optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr,
                                     momentum=0.5, weight_decay=0.0005)
-        # warmup_epochs = 30
-        warmup_epochs = 5
+        warmup_epochs = args.warm_up_epochs
         scheduler = LambdaLR(optimizer, lr_lambda=lambda ep: (local_epoch * round + ep) / warmup_epochs if (local_epoch * round + ep) < warmup_epochs else 1)
 
         # multiple local epochs
         if local_epoch > 0:
             for ep in range(local_epoch):
-                # print(f'epoch {ep}')
-                #print('checkpoint')
-                #print(model.state_dict())
                 data_loader = iter(self.train_data)
                 iter_num = len(data_loader)
                 for it in range(iter_num):
@@ -84,19 +81,10 @@ class LocalUpdate_FedLD(object):
                     model.zero_grad()
                     _, output = model(images)
                     loss = self.criterion(output, labels)
-                    #loss = self.criterion(output, labels)
-                    # print(f'loss before loss backward: {loss}')
-                    # print('checkpoint before loss backward')
-                    # print(model.state_dict()['conv1.weight'][0][0])
                     loss.backward()
-                    #print('checkpoint after loss backward-1')
-                    #print(model.state_dict())
                     optimizer.step()
-                    #if args.lr_warm_up:
-                    # scheduler.step()  # warm up
-                    # print(f'loss after loss backward: {loss}')
-                    # print('checkpoint after loss backward')
-                    # print(model.state_dict()['conv1.weight'][0][0])
+                    if args.lr_warm_up:
+                        scheduler.step()
                     iter_loss.append(loss.item())
                     torch.cuda.empty_cache()
         # multiple local iterations, but less than 1 epoch
@@ -127,12 +115,6 @@ class LocalUpdate_FedLD(object):
 
         acc1 = self.local_test(self.test_data)
 
-        # Set optimizer for the local updates, default sgd
-        #for name, param in model.named_parameters():
-        #    if name in self.w_local_keys:
-        #        param.requires_grad = True
-        #    else:
-        #        param.requires_grad = False
         optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=self.args.lr,
                                     momentum=0.5, weight_decay=0.0005)
         # multiple local epochs

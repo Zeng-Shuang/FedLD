@@ -20,6 +20,8 @@ def args_parser():
                         help='learning rate')
     parser.add_argument('--lr_warm_up', type=bool, default=False,
                         help='learning rate warm up')
+    parser.add_argument('--warm_up_epochs', type=int, default=5,
+                        help='learning rate warm up epochs')
     parser.add_argument('--momentum', type=float, default=0.5,
                         help='SGD momentum')
     parser.add_argument('--train_rule', type=str, default='FedAvg',

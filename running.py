@@ -118,14 +118,12 @@ def train_round_fedavg(args, global_model, local_clients, rnd, train_loader, **k
     agg_weight = []
 
     global_weight = global_model.state_dict()
-    for idx in tqdm(idx_users):
+    for idx in idx_users:
         local_client = local_clients[idx]
         agg_weight.append(local_client.agg_weight)
         local_epoch = args.local_epoch
         local_client.update_local_model(global_weight=global_weight)
-        print(f'client {idx}, round {rnd}')
         w, loss1, loss2, acc1, acc2 = local_client.local_training(local_epoch=local_epoch, round=rnd)
-        print('idx: {}, loss1: {}, loss2: {}, acc1: {}, acc2: {}'.format(idx, loss1, loss2, acc1, acc2))
         local_weights.append(copy.deepcopy(w))
         local_losses1.append(copy.deepcopy(loss1))
         local_losses2.append(copy.deepcopy(loss2))
@@ -153,21 +151,12 @@ def train_round_fedprox(args, global_model, local_clients, rnd, train_loader, **
     idx_users = np.random.choice(range(num_users), m, replace=False)
     idx_users = sorted(idx_users)
     local_weights, local_losses1, local_losses2 = [], [], []
-    local_grads = []
     local_acc1 = []
     local_acc2 = []
     agg_weight = []
 
     global_weight = global_model.state_dict()
-    if rnd <= args.epochs:
-        if rnd <= 2:
-            args.lr = 0.0001
-        else:
-            args.r = 0.01
 
-    supervised_loss_list = []
-    dist_shift_loss_list = []
-    all_data_loss_list = []
     for idx in tqdm(idx_users):
         local_client = local_clients[idx]
         agg_weight.append(local_client.agg_weight)
@@ -175,17 +164,6 @@ def train_round_fedprox(args, global_model, local_clients, rnd, train_loader, **
         local_client.update_local_model(global_weight=global_weight)
         w, loss1, loss2, acc1, acc2 = local_client.local_training(local_epoch=local_epoch, global_model = global_model, round=rnd)
         print('idx: {}, loss1: {}, loss2: {}, acc1: {}, acc2: {}'.format(idx, loss1, loss2, acc1, acc2))
-        # supervised loss for client idx
-        supervised_loss_idx = local_client.local_test(test_loader = train_loader[idx])[0]
-        supervised_loss_list.append(supervised_loss_idx)
-        # distribution shift loss for client idx
-        dist_shift_loss_idx = 0
-        all_data_loss_idx = 0
-        for j in tqdm(idx_users):
-            dist_shift_loss_idx  = dist_shift_loss_idx + local_client.local_test(test_loader = train_loader[j])[0] - local_client.local_test(test_loader = train_loader[idx])[0]
-            all_data_loss_idx = all_data_loss_idx + local_client.local_test(test_loader = train_loader[j])[0]
-        dist_shift_loss_list.append(dist_shift_loss_idx)
-        all_data_loss_list.append(all_data_loss_idx)
         local_weights.append(copy.deepcopy(w))
         local_losses1.append(copy.deepcopy(loss1))
         local_losses2.append(copy.deepcopy(loss2))
@@ -197,26 +175,12 @@ def train_round_fedprox(args, global_model, local_clients, rnd, train_loader, **
     # update global model
     global_model.load_state_dict(global_weight)
 
-    temp_client = copy.deepcopy(local_clients[0])
-    temp_client.update_local_model(global_weight=global_weight)
-    all_data_loss_global = 0
-    for idx in idx_users:
-        all_data_loss_global += temp_client.local_test(test_loader = train_loader[idx])[0]
-    aggregation_loss_list = []
-    for idx in idx_users:
-        aggregation_loss_list.append(all_data_loss_global - all_data_loss_list[idx])
-
-    supervised_loss = sum(supervised_loss_list)
-    dist_shift_loss = sum(dist_shift_loss_list)/len(dist_shift_loss_list)
-    aggregation_loss = sum(aggregation_loss_list)/len(aggregation_loss_list)
-
-
     loss_avg1 = sum(local_losses1) / len(local_losses1)
     loss_avg2 = sum(local_losses2) / len(local_losses2)
     acc_avg1 = sum(local_acc1) / len(local_acc1)
     acc_avg2 = sum(local_acc2) / len(local_acc2)
 
-    return loss_avg1, loss_avg2, acc_avg1, acc_avg2, supervised_loss, dist_shift_loss, aggregation_loss
+    return loss_avg1, loss_avg2, acc_avg1, acc_avg2
 
 def communication_fedbn(args,server_model, models, client_weights):
     with torch.no_grad():
@@ -296,10 +260,6 @@ def train_round_fedpac(args, global_model, local_clients, rnd, **kwargs):
     agg_g = args.agg_g  # conduct classifier aggregation or not
 
     if rnd <= args.epochs:
-        if rnd <= 2:
-            args.lr = 0.0001
-        else:
-            args.r = 0.01
         for idx in idx_users:
             local_client = local_clients[idx]
             ## statistics collection

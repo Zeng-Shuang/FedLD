@@ -19,6 +19,7 @@ if __name__ == '__main__':
     print(f'Split: {args.retina_split}')
     print(f'lr: {args.lr}')
     print(f'local epoch: {args.local_epoch}')
+    print(f'whether use svd: {args.svd}')
     print(f'marg_control_loss: {args.marg_control_loss}')
     print(f'margin_loss_penalty: {args.margin_loss_penalty}')
     device = args.device
@@ -94,11 +95,10 @@ if __name__ == '__main__':
 
     elif args.train_rule == 'FedProx':
         for round in range(args.epochs):
-            loss1, loss2, local_acc1, local_acc2, supervised_loss, dist_shift_loss, aggregation_loss= train_round_parallel(args, global_model, local_clients, round, train_loader)
+            loss1, loss2, local_acc1, local_acc2 = train_round_parallel(args, global_model, local_clients, round, train_loader)
             train_loss.append(loss1)
             print("Train Loss: {}, {}".format(loss1, loss2))
             print("Local Accuracy on Local Data: {}%, {}%".format(local_acc1, local_acc2))
-            print("Supervised Loss: {}, Distribution Shift Loss: {}, Aggregation Loss: {}".format(supervised_loss, dist_shift_loss, aggregation_loss))
             local_accs1.append(local_acc1)
             local_accs2.append(local_acc2)
 

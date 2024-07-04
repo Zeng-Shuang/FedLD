@@ -6,6 +6,9 @@ import copy
 import torch
 from torch import nn
 import time
+from torch.optim.lr_scheduler import LambdaLR
+from options import args_parser
+args = args_parser()
 
 
 # ---------------------------------------------------------------------------- #
@@ -64,6 +67,10 @@ class LocalUpdate_FedProx(object):
         # Set optimizer for the local updates, default sgd
         optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr,
                                     momentum=0.5, weight_decay=0.0005)
+        warmup_epochs = args.warm_up_epochs
+        scheduler = LambdaLR(optimizer, lr_lambda=lambda ep: (local_epoch * round + ep) / warmup_epochs
+        if (local_epoch * round + ep) < warmup_epochs else 1)
+
         # multiple local epochs
         if local_epoch > 0:
             for ep in range(local_epoch):
@@ -81,6 +88,9 @@ class LocalUpdate_FedProx(object):
                     loss = loss + mu * proximal_term
                     loss.backward()
                     optimizer.step()
+                    if args.lr_warm_up:
+                        scheduler.step()
+                    scheduler.step()
                     iter_loss.append(loss.item())
         # multiple local iterations, but less than 1 epoch
         else:
@@ -112,12 +122,6 @@ class LocalUpdate_FedProx(object):
 
         acc1 = self.local_test(self.test_data)
 
-        # Set optimizer for the local updates, default sgd
-        #for name, param in model.named_parameters():
-        #    if name in self.w_local_keys:
-        #        param.requires_grad = True
-        #    else:
-        #        param.requires_grad = False
         optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=self.args.lr,
                                     momentum=0.5, weight_decay=0.0005)
         # multiple local epochs
