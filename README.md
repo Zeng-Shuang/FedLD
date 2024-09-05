@@ -1,6 +1,7 @@
-# FedLD (Tackling Data Heterogeneity in Federated Learning via Loss Decomposition)
+# FedLD: Tackling Data Heterogeneity in Federated Learning via Loss Decomposition
 Official implementation of "Tackling Data Heterogeneity in Federated Learning via Loss Decomposition" (MICCAI 2024) https://arxiv.org/pdf/2408.12300
 
+![image](https://github.com/Zeng-Shuang/FedLD/blob/main/FedLD-framework.png)
 ## Pre-requisites
 ### Set up environment
 ```
